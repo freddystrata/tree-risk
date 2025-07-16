@@ -47,7 +47,7 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
     
     // Position nodes in layers
     
-    // Layer 3: Root Causes (left side)
+    // Layer 1: Root Causes (left side)
     rootCauses.forEach((risk, index) => {
       const y = 100 + (index * 80);
       nodes.push({
@@ -73,7 +73,7 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
       });
     });
     
-    // Layer 1: Final Effect (right side)
+    // Layer 3: Final Effect (right side)
     if (mainEffect) {
       nodes.push({
         id: mainEffect.id,
@@ -85,42 +85,23 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
       });
     }
     
-    // Create connections based on the example structure
-    // Root causes to intermediate risks
-    const interconnectionCauses = ['Ambiguous Interconnection Agreement', 'Inexperienced Subcontractor'];
-    const inspectionCauses = ['Late Permit from County', 'Change Order Not Approved', 'Missing Stamp'];
-    const constructionCauses = ['Late Mobilization', 'Site Access Dispute', 'Crew Shortage', 'Port Congestion'];
-    
-    rootCauses.forEach(rootCause => {
-      // Connect to appropriate intermediate risk
-      if (interconnectionCauses.some(cause => rootCause.description.includes(cause))) {
-        const interconnectionRisk = intermediateRisks.find(r => r.description.includes('Interconnection'));
-        if (interconnectionRisk) {
-          connections.push({ from: rootCause.id, to: interconnectionRisk.id });
-        }
-      }
-      
-      if (inspectionCauses.some(cause => rootCause.description.includes(cause))) {
-        const inspectionRisk = intermediateRisks.find(r => r.description.includes('Inspection'));
-        if (inspectionRisk) {
-          connections.push({ from: rootCause.id, to: inspectionRisk.id });
-        }
-      }
-      
-      if (constructionCauses.some(cause => rootCause.description.includes(cause))) {
-        const constructionRisk = intermediateRisks.find(r => r.description.includes('Construction') || r.description.includes('Port'));
-        if (constructionRisk) {
-          connections.push({ from: rootCause.id, to: constructionRisk.id });
-        }
+    // Create connections based on actual risk relationships
+    projectRisks.forEach(risk => {
+      if (risk.effects && risk.effects.length > 0) {
+        risk.effects.forEach(effectId => {
+          // Find the effect risk by matching description or ID
+          const effectRisk = projectRisks.find(r => 
+            r.id === effectId || 
+            r.description.toLowerCase().includes(effectId.toLowerCase()) ||
+            effectId.toLowerCase().includes(r.description.toLowerCase().split(' ')[0])
+          );
+          
+          if (effectRisk) {
+            connections.push({ from: risk.id, to: effectRisk.id });
+          }
+        });
       }
     });
-    
-    // Intermediate risks to final effect
-    if (mainEffect) {
-      intermediateRisks.forEach(intermediate => {
-        connections.push({ from: intermediate.id, to: mainEffect.id });
-      });
-    }
     
     return { nodes, connections };
   }, [projectRisks, selectedProject]);

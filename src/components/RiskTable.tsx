@@ -198,6 +198,12 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
               </th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('riskType')}
+              >
+                Risk Type <SortIcon field="riskType" />
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('residualScore')}
               >
                 Residual Score <SortIcon field="residualScore" />
@@ -258,6 +264,9 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${riskLevelStyle.background} ${riskLevelStyle.text}`}>
                       {risk.riskLevel}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {risk.riskType}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {risk.residualScore.toFixed(1)}
