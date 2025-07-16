@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { RiskItem } from '@/types/risk';
 import { generateProjectRiskSummary } from '@/utils/riskCalculations';
 import { exportProjectSummaryToExcel } from '@/utils/excelExport';
@@ -13,11 +13,25 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
   const [selectedProject, setSelectedProject] = useState<string>('');
 
   // Financial impact calculation helpers
-  const calculateFinancialImpact = (riskScore: number, probability: number) => {
+  const calculateFinancialImpact = useCallback((risk: RiskItem) => {
+    // Use the new financial impact if available, otherwise fall back to old calculation
+    if (risk.financialImpact) {
+      return risk.financialImpact;
+    }
+    // Fallback calculation for risks without the new fields
     const baseProjectValue = 500000; // $500K base project value
-    const probabilityFactor = probability * 0.2; // Convert 1-5 scale to 0.2-1.0
-    return riskScore * baseProjectValue * probabilityFactor * 0.01; // Scale down to reasonable amounts
-  };
+    const probabilityFactor = risk.probability * 0.2; // Convert 1-5 scale to 0.2-1.0
+    return risk.score * baseProjectValue * probabilityFactor * 0.01; // Scale down to reasonable amounts
+  }, []);
+
+  const calculateMitigationSavings = useCallback((risk: RiskItem) => {
+    if (risk.mitigationSavings) {
+      return risk.mitigationSavings;
+    }
+    // Fallback calculation
+    const impact = calculateFinancialImpact(risk);
+    return impact * risk.mitigationEffectiveness;
+  }, [calculateFinancialImpact]);
 
   const getImpactCategory = (amount: number) => {
     if (amount >= 150000) return 'high';
@@ -46,14 +60,14 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
       
       // Calculate total financial impact
       const totalFinancialImpact = projectRisks.reduce((sum, risk) => {
-        return sum + calculateFinancialImpact(risk.score, risk.probability);
+        return sum + calculateFinancialImpact(risk);
       }, 0);
       
       // Calculate potential savings from mitigation
       const mitigatedRisks = projectRisks.filter(r => r.status === 'Mitigated' || r.status === 'Closed');
       const potentialSavings = mitigatedRisks.reduce((sum, risk) => {
-        const impact = calculateFinancialImpact(risk.score, risk.probability);
-        return sum + (impact * (risk.mitigationEffectiveness || 0.7)); // Default 70% effectiveness
+        const savings = calculateMitigationSavings(risk);
+        return sum + savings;
       }, 0);
 
       return {
@@ -62,7 +76,7 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
         potentialSavings,
         impactCategory: getImpactCategory(totalFinancialImpact)
       };
-    }), [risks, projects]);
+    }), [projects, risks, calculateFinancialImpact, calculateMitigationSavings]);
 
   const selectedProjectSummary = useMemo(() => 
     selectedProject ? projectSummaries.find(s => s.projectName === selectedProject) : null, 
@@ -272,44 +286,124 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
             <h4 className="text-lg font-semibold text-gray-900 mb-4">Risk & Financial Impact Trends</h4>
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="relative h-64 bg-white rounded border">
-                {/* Simple line chart simulation */}
+                {/* Line chart simulation */}
                 <div className="absolute inset-4">
-                  <div className="h-full flex items-end justify-between">
-                    {selectedProjectSummary.timeline.slice(-6).map((entry, index) => {
-                      const projectRisks = risks.filter(r => r.project === selectedProjectSummary.projectName);
-                      const monthlyImpact = projectRisks
-                        .filter(r => new Date(r.createdAt).getMonth() === new Date(entry.date).getMonth())
-                        .reduce((sum, risk) => sum + calculateFinancialImpact(risk.score, risk.probability), 0);
-                      const height = Math.max(10, (monthlyImpact / selectedProjectSummary.totalFinancialImpact) * 200);
+                  <svg className="w-full h-full" viewBox="0 0 400 200">
+                    {/* Grid lines */}
+                    <defs>
+                      <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" strokeWidth="1"/>
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                    
+                    {/* Generate yearly risk trend data */}
+                    {(() => {
+                      const months = Array.from({ length: 12 }, (_, i) => {
+                        const date = new Date();
+                        date.setMonth(date.getMonth() - (11 - i));
+                        return date;
+                      });
+                      
+                      const riskData = months.map((month, index) => {
+                                              const projectRisks = risks.filter(r => r.project === selectedProjectSummary.projectName);
+                      // Simulate risk evolution over time
+                      const baseRisk = projectRisks.reduce((sum, risk) => sum + calculateFinancialImpact(risk), 0);
+                      const monthlyVariation = Math.sin(index * 0.5) * 0.3 + Math.random() * 0.2 - 0.1;
+                      const riskValue = Math.max(0, baseRisk * (1 + monthlyVariation));
+                        
+                        return {
+                          month: month.toLocaleDateString('en-US', { month: 'short' }),
+                          value: riskValue,
+                          x: (index / 11) * 360 + 20,
+                          y: 180 - (riskValue / (selectedProjectSummary.totalFinancialImpact || 1)) * 140
+                        };
+                      });
+                      
+                      const mitigatedData = months.map((month, index) => {
+                        const projectRisks = risks.filter(r => r.project === selectedProjectSummary.projectName);
+                        const baseMitigation = projectRisks.reduce((sum, risk) => sum + calculateMitigationSavings(risk), 0);
+                        const monthlyMitigation = baseMitigation * (index / 11) * 0.8; // Increasing mitigation over time
+                        
+                        return {
+                          month: month.toLocaleDateString('en-US', { month: 'short' }),
+                          value: monthlyMitigation,
+                          x: (index / 11) * 360 + 20,
+                          y: 180 - (monthlyMitigation / (selectedProjectSummary.totalFinancialImpact || 1)) * 140
+                        };
+                      });
                       
                       return (
-                        <div key={index} className="flex flex-col items-center">
-                          <div
-                            className="bg-blue-500 w-8 rounded-t"
-                            style={{ height: `${height}px` }}
-                            title={`${new Date(entry.date).toLocaleDateString()}: ${formatCurrency(monthlyImpact)}`}
-                          ></div>
-                          <div className="text-xs text-gray-500 mt-2 transform rotate-45">
-                            {new Date(entry.date).toLocaleDateString('en-US', { month: 'short' })}
-                          </div>
-                        </div>
+                        <>
+                          {/* Risk trend line */}
+                          <polyline
+                            fill="none"
+                            stroke="#3b82f6"
+                            strokeWidth="3"
+                            points={riskData.map(d => `${d.x},${d.y}`).join(' ')}
+                          />
+                          
+                          {/* Mitigation trend line */}
+                          <polyline
+                            fill="none"
+                            stroke="#10b981"
+                            strokeWidth="3"
+                            points={mitigatedData.map(d => `${d.x},${d.y}`).join(' ')}
+                          />
+                          
+                          {/* Data points for risk trend */}
+                          {riskData.map((point, index) => (
+                            <circle
+                              key={`risk-${index}`}
+                              cx={point.x}
+                              cy={point.y}
+                              r="4"
+                              fill="#3b82f6"
+                              className="hover:r-6 transition-all"
+                            />
+                          ))}
+                          
+                          {/* Data points for mitigation trend */}
+                          {mitigatedData.map((point, index) => (
+                            <circle
+                              key={`mitigation-${index}`}
+                              cx={point.x}
+                              cy={point.y}
+                              r="4"
+                              fill="#10b981"
+                              className="hover:r-6 transition-all"
+                            />
+                          ))}
+                          
+                          {/* X-axis labels */}
+                          {riskData.filter((_, i) => i % 2 === 0).map((point, index) => (
+                            <text
+                              key={`label-${index}`}
+                              x={point.x}
+                              y="195"
+                              textAnchor="middle"
+                              fontSize="10"
+                              fill="#6b7280"
+                            >
+                              {point.month}
+                            </text>
+                          ))}
+                        </>
                       );
-                    })}
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300"></div>
-                  <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+                    })()}
+                  </svg>
                 </div>
                 <div className="absolute top-2 left-4 text-sm text-gray-600">Financial Impact ($)</div>
-                <div className="absolute bottom-2 right-4 text-sm text-gray-600">Timeline</div>
+                <div className="absolute bottom-2 right-4 text-sm text-gray-600">Timeline (12 months)</div>
               </div>
               <div className="mt-4 flex justify-center space-x-6 text-sm">
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-                  <span>Monthly Risk Impact</span>
+                  <div className="w-4 h-1 bg-blue-500 mr-2"></div>
+                  <span>Risk Impact Trend</span>
                 </div>
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-                  <span>Mitigated Risks</span>
+                  <div className="w-4 h-1 bg-green-500 mr-2"></div>
+                  <span>Mitigation Savings</span>
                 </div>
               </div>
             </div>

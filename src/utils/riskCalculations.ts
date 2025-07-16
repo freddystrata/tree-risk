@@ -48,8 +48,38 @@ export function getRiskLevel(score: number): RiskLevel {
 /**
  * Calculate residual risk score after mitigation
  */
-export function calculateResidualScore(score: number, mitigationEffectiveness: number): number {
-  return Math.round((score * (1 - mitigationEffectiveness)) * 10) / 10;
+export function calculateResidualRiskScore(score: number, mitigationEffectiveness: number): number {
+  if (mitigationEffectiveness < 0 || mitigationEffectiveness > 1) {
+    throw new Error('Mitigation effectiveness must be between 0 and 1');
+  }
+  return Math.round(score * (1 - mitigationEffectiveness));
+}
+
+/**
+ * Calculate financial impact using new formula: (Dollar Effect per Unit) × (Exposure Units) × (Probability/5)
+ */
+export function calculateFinancialImpact(
+  dollarEffectPerUnit: number, 
+  exposureUnits: number, 
+  probability: number
+): number {
+  if (probability < 1 || probability > 5) {
+    throw new Error('Probability must be between 1 and 5');
+  }
+  // Convert probability from 1-5 scale to 0.2-1.0 scale
+  const probabilityFactor = probability / 5;
+  return dollarEffectPerUnit * exposureUnits * probabilityFactor;
+}
+
+/**
+ * Calculate mitigation savings: Original Impact - Residual Impact
+ */
+export function calculateMitigationSavings(
+  originalImpact: number, 
+  mitigationEffectiveness: number
+): number {
+  const residualImpact = originalImpact * (1 - mitigationEffectiveness);
+  return originalImpact - residualImpact;
 }
 
 /**
@@ -67,7 +97,7 @@ export function calculateRiskMetrics(
 } {
   const score = calculateRiskScore(probability, impact);
   const riskLevel = getRiskLevel(score);
-  const residualScore = calculateResidualScore(score, mitigationEffectiveness);
+  const residualScore = calculateResidualRiskScore(score, mitigationEffectiveness);
   const residualRiskLevel = getRiskLevel(residualScore);
 
   return {
@@ -220,45 +250,57 @@ export function validateMitigationEffectiveness(effectiveness: number): string[]
 }
 
 /**
- * Create a new risk item with calculated metrics
+ * Create a risk item with calculated fields
  */
-export function createRiskItem(data: {
-  description: string;
-  probability: number;
-  impact: number;
-  mitigationEffectiveness?: number;
-  owner?: string;
-  category?: string;
-  project?: string;
-  status?: 'Open' | 'In Progress' | 'Mitigated' | 'Closed';
-  notes?: string;
-  causes?: string[];
-  effects?: string[];
-  rootCause?: boolean;
-}): Omit<RiskItem, 'id'> {
-  const metrics = calculateRiskMetrics(
-    data.probability, 
-    data.impact, 
-    data.mitigationEffectiveness || 0
-  );
+export function createRiskItem(data: Partial<RiskItem>): Omit<RiskItem, 'id'> {
+  const score = calculateRiskScore(data.probability || 1, data.impact || 1);
+  const riskLevel = getRiskLevel(score);
+  const mitigationEffectiveness = data.mitigationEffectiveness || 0;
+  const residualScore = calculateResidualRiskScore(score, mitigationEffectiveness);
+  const residualRiskLevel = getRiskLevel(residualScore);
+  
+  // Calculate financial impact if data is provided
+  let financialImpact = 0;
+  let mitigationSavings = 0;
+  
+  if (data.dollarEffectPerUnit && data.exposureUnits && data.probability) {
+    financialImpact = calculateFinancialImpact(
+      data.dollarEffectPerUnit, 
+      data.exposureUnits, 
+      data.probability
+    );
+    mitigationSavings = calculateMitigationSavings(financialImpact, mitigationEffectiveness);
+  }
 
   const now = new Date().toISOString();
-
+  
   return {
-    description: data.description,
-    probability: data.probability,
-    impact: data.impact,
-    mitigationEffectiveness: data.mitigationEffectiveness || 0,
+    description: data.description || '',
+    probability: data.probability || 1,
+    impact: data.impact || 1,
+    score,
+    riskLevel: riskLevel.name,
+    mitigationEffectiveness,
+    residualScore,
+    residualRiskLevel: residualRiskLevel.name,
     owner: data.owner,
     category: data.category,
     project: data.project,
     status: data.status || 'Open',
+    completionDate: data.completionDate,
+    mitigationDate: data.mitigationDate,
     notes: data.notes,
+    comments: data.comments,
+    createdAt: data.createdAt || now,
+    updatedAt: data.updatedAt || now,
     causes: data.causes || [],
     effects: data.effects || [],
     rootCause: data.rootCause || false,
-    createdAt: now,
-    updatedAt: now,
-    ...metrics,
+    dollarEffectPerUnit: data.dollarEffectPerUnit,
+    exposureUnits: data.exposureUnits,
+    exposureUnitType: data.exposureUnitType,
+    financialImpact,
+    mitigationSavings,
+    riskType: data.riskType
   };
 }

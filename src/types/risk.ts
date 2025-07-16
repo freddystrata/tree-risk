@@ -22,6 +22,13 @@ export interface RiskItem {
   causes?: string[]; // IDs of risks that cause this risk
   effects?: string[]; // IDs of risks that this risk causes
   rootCause?: boolean; // Is this a root cause
+  // New: Financial Impact Formula fields
+  dollarEffectPerUnit?: number; // e.g., $10,000 per day, $500 per MWh
+  exposureUnits?: number; // e.g., 20 days, 100 MWh, 10% tariff
+  exposureUnitType?: string; // e.g., "days", "MWh", "% tariff"
+  financialImpact?: number; // calculated: dollarEffectPerUnit × exposureUnits × (probability/5)
+  mitigationSavings?: number; // calculated: original impact - residual impact
+  riskType?: 'root_cause' | 'intermediate' | 'effect'; // For cause-effect diagram
 }
 
 export interface RiskLevel {
