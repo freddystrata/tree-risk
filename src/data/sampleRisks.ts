@@ -5,7 +5,7 @@ function generateId(): string {
   return Math.random().toString(36).substr(2, 9);
 }
 
-const sampleRiskData = [
+const sampleRiskData: Partial<RiskItem>[] = [
   // ROOT CAUSES - Layer 1
   {
     id: "ambiguous-interconnection-agreement",
@@ -25,7 +25,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 5000, // $5K per day of delay
     exposureUnits: 30, // 30 days potential delay
     exposureUnitType: "days",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     id: "inexperienced-subcontractor",
@@ -45,7 +49,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 8000, // $8K per day of delay
     exposureUnits: 15, // 15 days potential delay
     exposureUnitType: "days",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     id: "vendor-communication-issues",
@@ -65,7 +73,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 3000, // $3K per day of delay
     exposureUnits: 10, // 10 days potential delay
     exposureUnitType: "days",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     id: "late-permit-from-county",
@@ -85,7 +97,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 12000, // $12K per day of delay
     exposureUnits: 20, // 20 days potential delay
     exposureUnitType: "days",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     id: "change-order-not-approved",
@@ -105,7 +121,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 7000, // $7K per day of delay
     exposureUnits: 12, // 12 days potential delay
     exposureUnitType: "days",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     id: "missing-engineering-stamp",
@@ -125,7 +145,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 15000, // $15K per day of delay
     exposureUnits: 8, // 8 days potential delay
     exposureUnitType: "days",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
 
   // INTERMEDIATE RISKS - Layer 2
@@ -147,7 +171,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 20000, // $20K per day of delay
     exposureUnits: 5, // 5 days delay
     exposureUnitType: "days",
-    riskType: 'intermediate' as const
+    riskType: 'intermediate' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     id: "delayed-final-inspection",
@@ -167,7 +195,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 18000, // $18K per day of delay
     exposureUnits: 4, // 4 days delay
     exposureUnitType: "days",
-    riskType: 'intermediate' as const
+    riskType: 'intermediate' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
 
   // FINAL IMPACT - Layer 3
@@ -189,7 +221,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 50000, // $50K per day of revenue loss
     exposureUnits: 5, // 5 days delay
     exposureUnitType: "days",
-    riskType: 'effect' as const
+    riskType: 'effect' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
 
   // Additional risks for Battery Storage Project
@@ -210,7 +246,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 25000, // $25K per MWh capacity affected
     exposureUnits: 10, // 10 MWh capacity
     exposureUnitType: "MWh",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     description: "Supply Chain Disruption",
@@ -229,7 +269,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 30000, // $30K per week of delay
     exposureUnits: 8, // 8 weeks potential delay
     exposureUnitType: "weeks",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     description: "Regulatory Changes in Energy Storage",
@@ -248,7 +292,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 100000, // $100K per 10% compliance cost increase
     exposureUnits: 15, // 15% potential increase
     exposureUnitType: "% compliance cost",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   },
   {
     description: "Currency Fluctuation Impact",
@@ -267,7 +315,11 @@ const sampleRiskData = [
     dollarEffectPerUnit: 50000, // $50K per 5% currency fluctuation
     exposureUnits: 10, // 10% potential fluctuation
     exposureUnitType: "% currency impact",
-    riskType: 'root_cause' as const
+    riskType: 'root_cause' as const,
+    highPriority: false,
+    projectType: 'Schedule',
+    dollarImpact: 150000,
+    impactType: 'per_day',
   }
 ];
 

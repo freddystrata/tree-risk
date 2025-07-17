@@ -29,6 +29,10 @@ export interface RiskItem {
   financialImpact?: number; // calculated: dollarEffectPerUnit × exposureUnits × (probability/5)
   mitigationSavings?: number; // calculated: original impact - residual impact
   riskType?: 'root_cause' | 'intermediate' | 'effect'; // For cause-effect diagram
+  highPriority?: boolean; // New: high priority flag
+  projectType?: string; // New: type of risk (dropdown)
+  dollarImpact?: number; // New: dollar value if risk happens
+  impactType?: 'per_day' | 'lump_sum'; // New: impact type
 }
 
 export interface RiskLevel {

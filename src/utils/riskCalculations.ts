@@ -301,6 +301,10 @@ export function createRiskItem(data: Partial<RiskItem>): Omit<RiskItem, 'id'> {
     exposureUnitType: data.exposureUnitType,
     financialImpact,
     mitigationSavings,
-    riskType: data.riskType
+    riskType: data.riskType,
+    highPriority: data.highPriority,
+    projectType: data.projectType,
+    dollarImpact: data.dollarImpact,
+    impactType: data.impactType,
   };
 }
