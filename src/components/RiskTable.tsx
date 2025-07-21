@@ -291,7 +291,6 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedAndFilteredRisks.map((risk) => {
               const riskLevelStyle = getRiskLevelStyling(risk.riskLevel);
-              const residualLevelStyle = getRiskLevelStyling(risk.residualRiskLevel);
               
               return (
                 <tr key={risk.id} className="hover:bg-gray-50">
