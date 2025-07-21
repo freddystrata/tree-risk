@@ -428,9 +428,9 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
                               {risk.description.substring(0, 40)}...
                             </div>
                             <div className="text-xs text-gray-500">
-                              {risk.dollarEffectPerUnit ? (
+                              {risk.dollarImpact !== undefined ? (
                                 <>
-                                  ${risk.dollarEffectPerUnit?.toLocaleString()}/{risk.exposureUnitType} × {risk.exposureUnits} × {(risk.probability/5).toFixed(1)} prob
+                                  ${risk.dollarImpact.toLocaleString()} {risk.impactType === 'per_day' ? `/day × ${risk.impactDays || 1} days` : ''}
                                 </>
                               ) : (
                                 'Legacy calculation'
@@ -752,19 +752,21 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
                       <div className="space-y-4">
                         <h6 className="font-semibold text-gray-800">Financial Impact</h6>
                         <div className="space-y-2">
-                          {selectedRisk.dollarEffectPerUnit ? (
+                          {selectedRisk.dollarImpact !== undefined ? (
                             <>
                               <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Dollar Effect/Unit:</span>
-                                <span className="font-medium">${selectedRisk.dollarEffectPerUnit.toLocaleString()}</span>
+                                <span className="text-sm text-gray-600">Dollar Impact:</span>
+                                <span className="font-medium">${selectedRisk.dollarImpact.toLocaleString()}</span>
                               </div>
+                              {selectedRisk.impactType === 'per_day' && (
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-gray-600">Number of Days:</span>
+                                  <span className="font-medium">{selectedRisk.impactDays || 1}</span>
+                                </div>
+                              )}
                               <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Exposure Units:</span>
-                                <span className="font-medium">{selectedRisk.exposureUnits} {selectedRisk.exposureUnitType}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Probability Factor:</span>
-                                <span className="font-medium">{(selectedRisk.probability/5).toFixed(1)}</span>
+                                <span className="text-sm text-gray-600">Impact Type:</span>
+                                <span className="font-medium">{selectedRisk.impactType === 'per_day' ? 'Per Day' : 'Lump Sum'}</span>
                               </div>
                             </>
                           ) : (

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { RiskItem } from '@/types/risk';
-import { calculateRiskMetrics, validateRiskValues, validateMitigationEffectiveness } from '@/utils/riskCalculations';
 
 interface RiskFormProps {
   risk?: RiskItem | null; // null for new risk, RiskItem for editing
@@ -449,11 +448,13 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
               <h3 className="text-sm font-medium text-gray-700 mb-2">Risk Calculation Preview</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-medium">Risk Score:</span> {formData.probability * formData.impact}
+                  <span className="font-medium">Risk Score:</span> {Number(formData.probability) * Number(formData.impact) || '-'}
                 </div>
                 <div>
                   <span className="font-medium">Residual Score:</span> {
-                    ((formData.probability * formData.impact) * (1 - formData.mitigationEffectiveness)).toFixed(1)
+                    isNaN(Number(formData.probability)) || isNaN(Number(formData.impact)) || isNaN(Number(formData.mitigationEffectiveness))
+                      ? '-'
+                      : ((Number(formData.probability) * Number(formData.impact)) * (1 - (Number(formData.mitigationEffectiveness) / 100))).toFixed(1)
                   }
                 </div>
               </div>

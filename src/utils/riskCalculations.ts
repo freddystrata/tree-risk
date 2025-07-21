@@ -59,16 +59,15 @@ export function calculateResidualRiskScore(score: number, mitigationEffectivenes
  * Calculate financial impact using new formula: (Dollar Effect per Unit) × (Exposure Units) × (Probability/5)
  */
 export function calculateFinancialImpact(
-  dollarEffectPerUnit: number, 
-  exposureUnits: number, 
-  probability: number
+  dollarImpact: number | undefined,
+  impactType: 'per_day' | 'lump_sum' | undefined,
+  impactDays: number | undefined
 ): number {
-  if (probability < 1 || probability > 5) {
-    throw new Error('Probability must be between 1 and 5');
+  if (!dollarImpact) return 0;
+  if (impactType === 'per_day') {
+    return dollarImpact * (impactDays || 1);
   }
-  // Convert probability from 1-5 scale to 0.2-1.0 scale
-  const probabilityFactor = probability / 5;
-  return dollarEffectPerUnit * exposureUnits * probabilityFactor;
+  return dollarImpact;
 }
 
 /**
@@ -258,22 +257,23 @@ export function createRiskItem(data: Partial<RiskItem>): Omit<RiskItem, 'id'> {
   const mitigationEffectiveness = data.mitigationEffectiveness || 0;
   const residualScore = calculateResidualRiskScore(score, mitigationEffectiveness);
   const residualRiskLevel = getRiskLevel(residualScore);
-  
+
   // Calculate financial impact if data is provided
   let financialImpact = 0;
   let mitigationSavings = 0;
-  
-  if (data.dollarEffectPerUnit && data.exposureUnits && data.probability) {
+  let residualImpact = 0;
+  if (data.dollarImpact !== undefined) {
     financialImpact = calculateFinancialImpact(
-      data.dollarEffectPerUnit, 
-      data.exposureUnits, 
-      data.probability
+      data.dollarImpact,
+      data.impactType,
+      data.impactType === 'per_day' ? data.impactDays : undefined
     );
-    mitigationSavings = calculateMitigationSavings(financialImpact, mitigationEffectiveness);
+    residualImpact = financialImpact * (1 - mitigationEffectiveness);
+    mitigationSavings = financialImpact - residualImpact;
   }
 
   const now = new Date().toISOString();
-  
+
   return {
     description: data.description || '',
     probability: data.probability || 1,
@@ -285,7 +285,7 @@ export function createRiskItem(data: Partial<RiskItem>): Omit<RiskItem, 'id'> {
     residualRiskLevel: residualRiskLevel.name,
     owner: data.owner,
     category: data.category,
-    project: data.project,
+    project: data.project || '',
     status: data.status || 'Open',
     completionDate: data.completionDate,
     mitigationDate: data.mitigationDate,
@@ -296,11 +296,13 @@ export function createRiskItem(data: Partial<RiskItem>): Omit<RiskItem, 'id'> {
     causes: data.causes || [],
     effects: data.effects || [],
     rootCause: data.rootCause || false,
-    dollarEffectPerUnit: data.dollarEffectPerUnit,
-    exposureUnits: data.exposureUnits,
-    exposureUnitType: data.exposureUnitType,
+    dollarImpact: data.dollarImpact,
+    impactType: data.impactType,
+    impactDays: data.impactType === 'per_day' ? data.impactDays : undefined,
     financialImpact,
     mitigationSavings,
-    riskType: data.riskType
+    residualImpact,
+    riskType: data.riskType || 'root_cause',
+    highPriority: data.highPriority,
   };
 }
