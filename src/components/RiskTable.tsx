@@ -20,12 +20,15 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
   const [filterLevel, setFilterLevel] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
+  const [filterProject, setFilterProject] = useState<string>('');
 
   // Get unique values for filters
   const uniqueStatuses = useMemo(() => 
     [...new Set(risks.map(r => r.status))], [risks]);
   const uniqueCategories = useMemo(() => 
     [...new Set(risks.map(r => r.category).filter(Boolean))], [risks]);
+  const uniqueProjects = useMemo(() => 
+    [...new Set(risks.map(r => r.project).filter(Boolean))], [risks]);
 
   // Get risk level styling
   const getRiskLevelStyling = (level: string) => {
@@ -50,6 +53,9 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
     if (filterCategory) {
       filtered = filtered.filter(risk => risk.category === filterCategory);
     }
+    if (filterProject) {
+      filtered = filtered.filter(risk => risk.project === filterProject);
+    }
 
     // Apply sorting
     return filtered.sort((a, b) => {
@@ -69,7 +75,7 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
         return bStr.localeCompare(aStr);
       }
     });
-  }, [risks, sortField, sortDirection, filterLevel, filterStatus, filterCategory]);
+  }, [risks, sortField, sortDirection, filterLevel, filterStatus, filterCategory, filterProject]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -146,12 +152,31 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
             </select>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Project
+            </label>
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+            >
+              <option value="">All Projects</option>
+              {uniqueProjects.map(project => (
+                <option key={project} value={project}>
+                  {project}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-end">
             <button
               onClick={() => {
                 setFilterLevel('');
                 setFilterStatus('');
                 setFilterCategory('');
+                setFilterProject('');
               }}
               className="px-4 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-md"
             >
@@ -204,15 +229,39 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
               </th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('residualScore')}
+                onClick={() => handleSort('mitigationEffectiveness')}
               >
-                Residual Score <SortIcon field="residualScore" />
+                Mitigation Effectiveness % <SortIcon field="mitigationEffectiveness" />
               </th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('residualRiskLevel')}
+                onClick={() => handleSort('dollarImpact')}
               >
-                Residual Level <SortIcon field="residualRiskLevel" />
+                Dollar Value <SortIcon field="dollarImpact" />
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('financialImpact')}
+              >
+                Financial Impact <SortIcon field="financialImpact" />
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('mitigationSavings')}
+              >
+                Mitigation Savings <SortIcon field="mitigationSavings" />
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('residualImpact')}
+              >
+                Residual Impact <SortIcon field="residualImpact" />
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('project')}
+              >
+                Project <SortIcon field="project" />
               </th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -266,15 +315,25 @@ export default function RiskTable({ risks, onEditRisk, onDeleteRisk, onUpdateSta
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {risk.riskType}
+                    {risk.riskType === 'root_cause' ? 'Root Cause' : risk.riskType === 'intermediate' ? 'Intermediate' : risk.riskType === 'effect' ? 'Effect' : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {risk.residualScore.toFixed(1)}
+                    {risk.mitigationEffectiveness !== undefined ? `${Math.round(risk.mitigationEffectiveness * 100)}%` : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${residualLevelStyle.background} ${residualLevelStyle.text}`}>
-                      {risk.residualRiskLevel}
-                    </span>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {risk.dollarImpact !== undefined ? `$${risk.dollarImpact.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {risk.financialImpact !== undefined ? `$${risk.financialImpact.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {risk.mitigationSavings !== undefined ? `$${risk.mitigationSavings.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {risk.residualImpact !== undefined ? `$${risk.residualImpact.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {risk.project || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {risk.owner || '-'}
