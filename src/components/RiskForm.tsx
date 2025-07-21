@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { RiskItem } from '@/types/risk';
-import { calculateRiskMetrics, validateRiskValues, validateMitigationEffectiveness } from '@/utils/riskCalculations';
 
 interface RiskFormProps {
   risk?: RiskItem | null; // null for new risk, RiskItem for editing
@@ -14,24 +13,36 @@ interface RiskFormProps {
 export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormProps) {
   const [formData, setFormData] = useState<{
     description: string;
-    probability: number;
-    impact: number;
-    mitigationEffectiveness: number;
+    probability: string; // allow blank, validate as 1-5
+    impact: string; // allow blank, validate as 1-5
+    mitigationEffectiveness: string; // allow blank, validate as 0-100
     owner: string;
     category: string;
     status: 'Open' | 'In Progress' | 'Mitigated' | 'Closed';
     notes: string;
     comments: string;
+    project: string;
+    riskType: 'root_cause' | 'intermediate' | 'effect' | '';
+    dollarImpact: string;
+    impactType: 'per_day' | 'lump_sum';
+    impactDays: string;
+    highPriority: boolean;
   }>({
     description: '',
-    probability: 1,
-    impact: 1,
-    mitigationEffectiveness: 0,
+    probability: '',
+    impact: '',
+    mitigationEffectiveness: '',
     owner: '',
     category: '',
     status: 'In Progress',
     notes: '',
     comments: '',
+    project: '',
+    riskType: '',
+    dollarImpact: '',
+    impactType: 'lump_sum',
+    impactDays: '',
+    highPriority: false,
   });
 
   const [errors, setErrors] = useState<string[]>([]);
@@ -42,27 +53,38 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
     if (risk) {
       setFormData({
         description: risk.description,
-        probability: risk.probability,
-        impact: risk.impact,
-        mitigationEffectiveness: risk.mitigationEffectiveness,
+        probability: risk.probability ? String(risk.probability) : '',
+        impact: risk.impact ? String(risk.impact) : '',
+        mitigationEffectiveness: risk.mitigationEffectiveness !== undefined ? String(Math.round(risk.mitigationEffectiveness * 100)) : '',
         owner: risk.owner || '',
         category: risk.category || '',
         status: risk.status,
         notes: risk.notes || '',
         comments: risk.comments || '',
+        project: risk.project || '',
+        riskType: risk.riskType || '',
+        dollarImpact: risk.dollarImpact !== undefined ? String(risk.dollarImpact) : '',
+        impactType: risk.impactType || 'lump_sum',
+        impactDays: risk.impactDays !== undefined ? String(risk.impactDays) : '',
+        highPriority: !!risk.highPriority,
       });
     } else {
-      // Reset for new risk
       setFormData({
         description: '',
-        probability: 1,
-        impact: 1,
-        mitigationEffectiveness: 0,
+        probability: '',
+        impact: '',
+        mitigationEffectiveness: '',
         owner: '',
         category: '',
         status: 'In Progress',
         notes: '',
         comments: '',
+        project: '',
+        riskType: '',
+        dollarImpact: '',
+        impactType: 'lump_sum',
+        impactDays: '',
+        highPriority: false,
       });
     }
     setErrors([]);
@@ -71,40 +93,94 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Validate input
     const validationErrors: string[] = [];
-    
     if (!formData.description.trim()) {
       validationErrors.push('Description is required');
     }
-
-    const riskErrors = validateRiskValues(formData.probability, formData.impact);
-    const mitigationErrors = validateMitigationEffectiveness(formData.mitigationEffectiveness);
-    
-    validationErrors.push(...riskErrors, ...mitigationErrors);
-
+    // Validate probability and impact
+    const prob = Number(formData.probability);
+    const imp = Number(formData.impact);
+    if (!formData.probability || isNaN(prob) || prob < 1 || prob > 5) {
+      validationErrors.push('Probability must be a number between 1 and 5');
+    }
+    if (!formData.impact || isNaN(imp) || imp < 1 || imp > 5) {
+      validationErrors.push('Impact must be a number between 1 and 5');
+    }
+    // Validate mitigation effectiveness
+    const mitEff = Number(formData.mitigationEffectiveness);
+    if (formData.mitigationEffectiveness === '' || isNaN(mitEff) || mitEff < 0 || mitEff > 100) {
+      validationErrors.push('Mitigation Effectiveness must be a number between 0 and 100');
+    }
+    // Validate required dropdowns
+    if (!formData.riskType) {
+      validationErrors.push('Type of Risk is required');
+    }
+    if (!formData.project) {
+      validationErrors.push('Project is required');
+    }
+    // Validate dollar impact if entered
+    if (formData.dollarImpact && (isNaN(Number(formData.dollarImpact)) || Number(formData.dollarImpact) < 0)) {
+      validationErrors.push('Dollar Impact must be a positive number');
+    }
+    if (formData.impactType === 'per_day' && (!formData.impactDays || isNaN(Number(formData.impactDays)) || Number(formData.impactDays) < 1)) {
+      validationErrors.push('Number of days must be a positive integer');
+    }
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
       setIsSubmitting(false);
       return;
     }
-
     // Calculate metrics
-    const metrics = calculateRiskMetrics(
-      formData.probability,
-      formData.impact,
-      formData.mitigationEffectiveness
-    );
-
+    const probability = Number(formData.probability);
+    const impact = Number(formData.impact);
+    const mitigationEffectiveness = Number(formData.mitigationEffectiveness) / 100;
+    const score = probability * impact;
+    const residualScore = score * (1 - mitigationEffectiveness);
+    // Financial impact
+    let financialImpact = undefined;
+    let residualImpact = undefined;
+    let mitigationSavings = undefined;
+    if (formData.dollarImpact) {
+      const dollarImpact = Number(formData.dollarImpact);
+      if (formData.impactType === 'per_day') {
+        const days = Number(formData.impactDays) || 1;
+        financialImpact = dollarImpact * days;
+      } else {
+        financialImpact = dollarImpact;
+      }
+      residualImpact = financialImpact * (1 - mitigationEffectiveness);
+      mitigationSavings = financialImpact - residualImpact;
+    }
     const now = new Date().toISOString();
     const riskData = {
-      ...formData,
-      ...metrics,
+      description: formData.description,
+      probability,
+      impact,
+      score,
+      riskLevel: '', // to be set by backend or calculation util
+      mitigationEffectiveness,
+      residualScore,
+      residualRiskLevel: '', // to be set by backend or calculation util
+      owner: formData.owner,
+      category: formData.category,
+      project: formData.project,
+      status: formData.status,
+      notes: formData.notes,
+      comments: formData.comments,
       createdAt: risk?.createdAt || now,
       updatedAt: now,
+      causes: risk?.causes || [],
+      effects: risk?.effects || [],
+      rootCause: risk?.rootCause || false,
+      dollarImpact: formData.dollarImpact ? Number(formData.dollarImpact) : undefined,
+      impactType: formData.impactType,
+      impactDays: formData.impactType === 'per_day' ? Number(formData.impactDays) : undefined,
+      financialImpact,
+      mitigationSavings,
+      residualImpact,
+      riskType: formData.riskType as 'root_cause' | 'intermediate' | 'effect',
+      highPriority: formData.highPriority,
     };
-
     onSave(riskData);
     setIsSubmitting(false);
   };
@@ -150,37 +226,37 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Probability (1-9) *
+                  Probability (1-5) *
                 </label>
                 <input
                   type="number"
                   min="1"
-                  max="9"
+                  max="5"
                   value={formData.probability}
-                  onChange={(e) => setFormData(prev => ({ ...prev, probability: parseInt(e.target.value) || 1 }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, probability: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1-5"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">1 = Very unlikely, 9 = Very likely</p>
+                <p className="text-xs text-gray-500 mt-1">1 = Very unlikely, 5 = Very likely</p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Impact (1-9) *
+                  Impact (1-5) *
                 </label>
                 <input
                   type="number"
                   min="1"
-                  max="9"
+                  max="5"
                   value={formData.impact}
-                  onChange={(e) => setFormData(prev => ({ ...prev, impact: parseInt(e.target.value) || 1 }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, impact: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1-5"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">1 = Minimal impact, 9 = Severe impact</p>
+                <p className="text-xs text-gray-500 mt-1">1 = Minimal impact, 5 = Severe impact</p>
               </div>
             </div>
-
             {/* Mitigation Effectiveness */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -190,14 +266,104 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
                 type="number"
                 min="0"
                 max="100"
-                value={Math.round(formData.mitigationEffectiveness * 100)}
+                value={formData.mitigationEffectiveness}
                 onChange={(e) => setFormData(prev => ({ 
                   ...prev, 
-                  mitigationEffectiveness: (parseInt(e.target.value) || 0) / 100 
+                  mitigationEffectiveness: e.target.value 
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0-100"
               />
               <p className="text-xs text-gray-500 mt-1">How effective are current mitigation measures?</p>
+            </div>
+            {/* Dollar Impact and Impact Type */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dollar Value (Impact, optional)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.dollarImpact}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dollarImpact: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 10000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Impact Type
+                </label>
+                <select
+                  value={formData.impactType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, impactType: e.target.value as 'per_day' | 'lump_sum' }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="lump_sum">Lump Sum</option>
+                  <option value="per_day">Per Day</option>
+                </select>
+              </div>
+            </div>
+            {/* Impact Days if per_day */}
+            {formData.impactType === 'per_day' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of Days (if per day)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.impactDays}
+                  onChange={(e) => setFormData(prev => ({ ...prev, impactDays: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 10"
+                />
+              </div>
+            )}
+            {/* Project Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project *
+              </label>
+              <input
+                type="text"
+                value={formData.project}
+                onChange={(e) => setFormData(prev => ({ ...prev, project: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Select or enter project name"
+                required
+              />
+            </div>
+            {/* Type of Risk Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Type of Risk *
+              </label>
+              <select
+                value={formData.riskType}
+                onChange={(e) => setFormData(prev => ({ ...prev, riskType: e.target.value as 'root_cause' | 'intermediate' | 'effect' | '' }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select type</option>
+                <option value="root_cause">Root Cause</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="effect">Effect</option>
+              </select>
+            </div>
+            {/* High Priority Checkbox */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.highPriority}
+                onChange={(e) => setFormData(prev => ({ ...prev, highPriority: e.target.checked }))}
+                className="mr-2"
+                id="highPriority"
+              />
+              <label htmlFor="highPriority" className="text-sm font-medium text-gray-700">
+                Mark as High Priority (optional)
+              </label>
             </div>
 
             {/* Owner and Category */}
@@ -282,11 +448,13 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
               <h3 className="text-sm font-medium text-gray-700 mb-2">Risk Calculation Preview</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-medium">Risk Score:</span> {formData.probability * formData.impact}
+                  <span className="font-medium">Risk Score:</span> {Number(formData.probability) * Number(formData.impact) || '-'}
                 </div>
                 <div>
                   <span className="font-medium">Residual Score:</span> {
-                    ((formData.probability * formData.impact) * (1 - formData.mitigationEffectiveness)).toFixed(1)
+                    isNaN(Number(formData.probability)) || isNaN(Number(formData.impact)) || isNaN(Number(formData.mitigationEffectiveness))
+                      ? '-'
+                      : ((Number(formData.probability) * Number(formData.impact)) * (1 - (Number(formData.mitigationEffectiveness) / 100))).toFixed(1)
                   }
                 </div>
               </div>

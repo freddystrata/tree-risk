@@ -1,34 +1,35 @@
 export interface RiskItem {
   id: string;
   description: string;
-  probability: number; // 1-5 scale
-  impact: number; // 1-5 scale
+  probability: number; // 1-5 scale, required
+  impact: number; // 1-5 scale, required
   score: number; // calculated: probability * impact
   riskLevel: string; // derived from score
-  mitigationEffectiveness: number; // 0-1 (0% to 100%)
+  mitigationEffectiveness: number; // 0-1 (0% to 100%), required
   residualScore: number; // calculated: score * (1 - mitigationEffectiveness)
   residualRiskLevel: string; // derived from residual score
   owner?: string;
   category?: string;
-  project?: string; // New: project association
+  project: string; // required: project association (dropdown)
   status: 'Open' | 'In Progress' | 'Mitigated' | 'Closed';
   completionDate?: string;
-  mitigationDate?: string; // New: when mitigation was implemented
+  mitigationDate?: string;
   notes?: string;
-  comments?: string; // Comments/lessons learned
+  comments?: string;
   createdAt: string;
   updatedAt: string;
-  // New: Cause-effect relationships
-  causes?: string[]; // IDs of risks that cause this risk
-  effects?: string[]; // IDs of risks that this risk causes
-  rootCause?: boolean; // Is this a root cause
-  // New: Financial Impact Formula fields
-  dollarEffectPerUnit?: number; // e.g., $10,000 per day, $500 per MWh
-  exposureUnits?: number; // e.g., 20 days, 100 MWh, 10% tariff
-  exposureUnitType?: string; // e.g., "days", "MWh", "% tariff"
-  financialImpact?: number; // calculated: dollarEffectPerUnit × exposureUnits × (probability/5)
-  mitigationSavings?: number; // calculated: original impact - residual impact
-  riskType?: 'root_cause' | 'intermediate' | 'effect'; // For cause-effect diagram
+  causes?: string[];
+  effects?: string[];
+  rootCause?: boolean;
+  // Financial Impact fields
+  dollarImpact?: number; // optional: dollar value if risk happens
+  impactType?: 'per_day' | 'lump_sum'; // optional: per day or lump sum
+  impactDays?: number; // optional: number of days if per_day
+  financialImpact?: number; // calculated: dollarImpact * impactDays (if per_day) or dollarImpact (if lump_sum)
+  mitigationSavings?: number; // calculated: financialImpact - residualImpact
+  residualImpact?: number; // calculated: financialImpact * (1 - mitigationEffectiveness)
+  riskType: 'root_cause' | 'intermediate' | 'effect'; // required: for cause-effect diagram (dropdown)
+  highPriority?: boolean; // optional: high priority checkbox
 }
 
 export interface RiskLevel {
