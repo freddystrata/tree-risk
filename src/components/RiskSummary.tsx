@@ -81,10 +81,9 @@ export default function RiskSummary({ risks }: RiskSummaryProps) {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">High Priority Alert</h3>
         {(() => {
           const highRisks = risks.filter(risk => 
-            ['HIGHEST', 'MEDIUM HIGH'].includes(risk.riskLevel) && 
-            risk.status !== 'Closed'
+            (risk.highPriority && risk.status !== 'Closed') ||
+            (['HIGHEST', 'MEDIUM HIGH'].includes(risk.riskLevel) && risk.status !== 'Closed')
           );
-          
           if (highRisks.length === 0) {
             return (
               <div className="text-green-600 font-medium">
@@ -92,15 +91,19 @@ export default function RiskSummary({ risks }: RiskSummaryProps) {
               </div>
             );
           }
-          
           return (
             <div className="space-y-2">
               <div className="text-red-600 font-medium">
                 ⚠️ {highRisks.length} high-priority risk(s) require attention
               </div>
               <div className="text-sm text-gray-600">
-                Risks with HIGHEST or MEDIUM HIGH levels that are not closed
+                Risks marked as High Priority or with HIGHEST/MEDIUM HIGH levels that are not closed
               </div>
+              <ul className="list-disc list-inside text-sm text-gray-800 mt-2">
+                {highRisks.map(risk => (
+                  <li key={risk.id}>{risk.description} {risk.highPriority && <span className="text-xs text-red-500 font-bold">(High Priority)</span>}</li>
+                ))}
+              </ul>
             </div>
           );
         })()}

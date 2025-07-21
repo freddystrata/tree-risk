@@ -65,10 +65,8 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
       }, 0);
       
       // Calculate potential savings from mitigation
-      const mitigatedRisks = projectRisks.filter(r => r.status === 'Mitigated' || r.status === 'Closed');
-      const potentialSavings = mitigatedRisks.reduce((sum, risk) => {
-        const savings = calculateMitigationSavings(risk);
-        return sum + savings;
+      const potentialSavings = projectRisks.reduce((sum, risk) => {
+        return sum + (risk.mitigationSavings || 0);
       }, 0);
 
       return {
@@ -486,7 +484,7 @@ export default function ProjectAnalytics({ risks }: ProjectAnalyticsProps) {
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <div className="flex justify-between items-center font-semibold text-lg">
-                      <span>Total Potential Savings:</span>
+                      <span>Total Mitigation Savings:</span>
                       <span className="text-green-600">{formatCurrency(selectedProjectSummary.potentialSavings)}</span>
                     </div>
                   </div>
