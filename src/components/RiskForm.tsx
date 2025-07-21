@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { RiskItem } from '@/types/risk';
+import { calculateRiskMetrics } from '@/utils/riskCalculations';
 
 interface RiskFormProps {
   risk?: RiskItem | null; // null for new risk, RiskItem for editing
@@ -151,16 +152,18 @@ export default function RiskForm({ risk, onSave, onCancel, isOpen }: RiskFormPro
       residualImpact = financialImpact * (1 - mitigationEffectiveness);
       mitigationSavings = financialImpact - residualImpact;
     }
+    // Calculate risk levels
+    const metrics = calculateRiskMetrics(probability, impact, mitigationEffectiveness);
     const now = new Date().toISOString();
     const riskData = {
       description: formData.description,
       probability,
       impact,
       score,
-      riskLevel: '', // to be set by backend or calculation util
+      riskLevel: metrics.riskLevel,
       mitigationEffectiveness,
       residualScore,
-      residualRiskLevel: '', // to be set by backend or calculation util
+      residualRiskLevel: metrics.residualRiskLevel,
       owner: formData.owner,
       category: formData.category,
       project: formData.project,
