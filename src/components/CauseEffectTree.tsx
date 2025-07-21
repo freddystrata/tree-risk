@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { RiskItem } from '@/types/risk';
 import { exportCauseEffectToExcel } from '@/utils/excelExport';
 
@@ -20,6 +20,9 @@ interface CauseEffectNode {
 export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [editingConnections, setEditingConnections] = useState(false);
+  const [newConnection, setNewConnection] = useState<{from: string, to: string}>({from: '', to: ''});
+  const [connections, setConnections] = useState<Array<{from: string, to: string}>>([]);
 
   // Get unique projects
   const projects = useMemo(() => 
@@ -104,7 +107,12 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
     });
     
     return { nodes, connections };
-  }, [projectRisks, selectedProject]);
+  }, [selectedProject, projectRisks]);
+
+  // Keep local connections state in sync with causeEffectData
+  useEffect(() => {
+    setConnections(causeEffectData.connections);
+  }, [causeEffectData.connections]);
 
   const handleExport = () => {
     if (selectedProject) {
@@ -169,7 +177,7 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
       </div>
 
       {/* Cause-Effect Diagram */}
-      {selectedProject && causeEffectData.nodes.length > 0 && (
+      {selectedProject && projectRisks.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-6">
             Cause-Effect Diagram: {selectedProject}
@@ -194,7 +202,7 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
                 </marker>
               </defs>
               
-              {causeEffectData.connections.map((connection, index) => {
+              {connections.map((connection, index) => {
                 const fromNode = causeEffectData.nodes.find(n => n.id === connection.from);
                 const toNode = causeEffectData.nodes.find(n => n.id === connection.to);
                 
@@ -281,6 +289,72 @@ export default function CauseEffectTree({ risks }: CauseEffectTreeProps) {
               <span className="text-sm">Final Impact</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Edit Connections UI */}
+      {selectedProject && projectRisks.length > 0 && (
+        <div className="my-4">
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => setEditingConnections(!editingConnections)}
+          >
+            {editingConnections ? 'Done Editing Connections' : 'Edit Connections'}
+          </button>
+          {editingConnections && (
+            <div className="mt-4 p-4 bg-gray-50 rounded border">
+              <h4 className="font-semibold mb-2">Edit Connections</h4>
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <select
+                  value={newConnection.from}
+                  onChange={e => setNewConnection(nc => ({ ...nc, from: e.target.value }))}
+                  className="border rounded px-2 py-1"
+                >
+                  <option value="">Select Source Node</option>
+                  {causeEffectData.nodes.map(node => (
+                    <option key={node.id} value={node.id}>{node.risk.description} ({node.type})</option>
+                  ))}
+                </select>
+                <span>→</span>
+                <select
+                  value={newConnection.to}
+                  onChange={e => setNewConnection(nc => ({ ...nc, to: e.target.value }))}
+                  className="border rounded px-2 py-1"
+                >
+                  <option value="">Select Target Node</option>
+                  {causeEffectData.nodes.map(node => (
+                    <option key={node.id} value={node.id}>{node.risk.description} ({node.type})</option>
+                  ))}
+                </select>
+                <button
+                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                  disabled={!newConnection.from || !newConnection.to || newConnection.from === newConnection.to || connections.some(c => c.from === newConnection.from && c.to === newConnection.to)}
+                  onClick={() => {
+                    setConnections(prev => [...prev, { from: newConnection.from, to: newConnection.to }]);
+                    setNewConnection({ from: '', to: '' });
+                  }}
+                >Add Connection</button>
+              </div>
+              <div className="mt-4">
+                <h5 className="font-medium mb-1">Current Connections</h5>
+                <ul className="list-disc list-inside">
+                  {connections.map((conn, idx) => {
+                    const fromNode = causeEffectData.nodes.find(n => n.id === conn.from);
+                    const toNode = causeEffectData.nodes.find(n => n.id === conn.to);
+                    return (
+                      <li key={idx} className="flex items-center gap-2">
+                        <span>{fromNode?.risk.description} ({fromNode?.type}) → {toNode?.risk.description} ({toNode?.type})</span>
+                        <button
+                          className="ml-2 px-2 py-0.5 bg-red-500 text-white rounded hover:bg-red-700 text-xs"
+                          onClick={() => setConnections(prev => prev.filter((c, i) => i !== idx))}
+                        >Delete</button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
